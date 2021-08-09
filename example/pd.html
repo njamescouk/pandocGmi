@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Nick James" />
+  <title>Emitting gemtext with Pandoc</title>
+  <style type="text/css">
+      /* code{white-space: pre-wrap;} */
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Emitting gemtext with Pandoc</h1>
+<p class="author">Nick James</p>
+</header>
+<h2 id="introduction">Introduction</h2>
+<p>Whilst faffing with <a href="https://gemini.circumlunar.space/docs/specification.gmi">gemtext</a> it ocurred to me that <a href="https://pandoc.org/">pandoc</a> could do the heavy lifting when it came to generating .gmi files.</p>
+<p>Still interested? Read on!</p>
+<h2 id="gemtext">Gemtext?</h2>
+<p>Gemini is a <a href="https://gemini.circumlunar.space/">recent proposal</a> for a lightweight web protocol with a mime type of text/gmi. Gemtext is, by design, childishly simple to write by hand, but it’s another story if you have reams of stuff you want to put in geminispace. Hence the interest in converting to text/gmi.</p>
+<h2 id="pandoc">Pandoc?</h2>
+<p>Pandoc is a well established document converter, typically used to get from markdown to html. /However/ it takes lots of different <a href="https://pandoc.org/MANUAL.html#general-options">formats</a> as input and output. Its input is converted into an internal representation which is emitted in the users choice of output format. Critically, it also provides facilities for emitting custom formats (see -F PROGRAM, –filter=PROGRAM under <a href="https://pandoc.org/MANUAL.html#reader-options">Reader options</a>). One of these <a href="https://pandoc.org/MANUAL.html#custom-writers">facilities</a> enables you to use <a href="https://www.lua.org/">Lua</a> to convert Pandoc’s internal representation to the desired output.</p>
+<h2 id="how">How?</h2>
+<p>You need <code>gmi.lua</code>. <code>default.gmi</code> will probably come in handy.</p>
+<pre><code>pandoc -t gmi.lua markdownFile</code></pre>
+<p>will convert markdown to text/gmi on stdout. If you want the title block etc etc to show up, use</p>
+<pre><code>pandoc -t gmi.lua --template default.gmi markdownFile</code></pre>
+<p>To convert from another format, do something like</p>
+<pre><code>pandoc -f FORMAT -t gmi.lua --template default.gmi file.format</code></pre>
+<p>where <code>FORMAT</code> is one of pandoc’s input formats. See <a href="https://pandoc.org/MANUAL.html#options">options</a> for more details.</p>
+<h2 id="omg-the-outputs-horrible">OMG the output’s horrible</h2>
+<p>Owing to a combination of my laziness and inadequacy, some of the conversions aren’t very nice.</p>
+<p>Oh, you wanted citations?</p>
+<pre><code>function Cite(s, cs)
+    return &quot;\nsorry cite not implemented\n&quot;
+end</code></pre>
+<h2 id="so-what-are-you-going-to-do-about-it">So what are you going to do about it?</h2>
+<p>Nothing.</p>
+<p>I may faff about with it to make it better suit my purposes over the next few years.</p>
+<p>Should you wish to do the same, read on.</p>
+<h2 id="scratching-the-itch">Scratching the itch</h2>
+<h3 id="lua">Lua</h3>
+<p>Using Lua to customize the output involves writing functions that are invoked when particular bits of pandoc’s internal representation come to be emitted. I don’t understand Pandoc, Haskell or Lua and luckily enough, you don’t have to either.</p>
+<p>Doing</p>
+<pre><code>pandoc --print-default-data-file sample.lua &gt; sample.lua</code></pre>
+<p>gives you a <a href="https://pandoc.org/MANUAL.html#custom-writers">lua program</a> mimicking pandoc’s conversion to <code>html</code></p>
+<p><code>gmi.lua</code> is just a hack of <code>sample.lua</code></p>
+<h3 id="the-template">The Template</h3>
+<ul>
+<li><code>default.gmi</code> is a <a href="https://pandoc.org/MANUAL.html#templates">template</a> that specifies output when <code>-s</code>/<code>--standalone</code> is used on the pandoc command line.</li>
+<li>In the gmi case pandoc will moan if you use standalone mode without doing <code>--template default.gmi</code>, but it will find <code>default.gmi</code> if it’s in <code>$DATADIR/templates</code>.</li>
+<li>if <code>default.gmi</code> isn’t in the template directory you need to specify it’s full path on the command line.</li>
+<li>If you specify the template, <code>--standalone</code> is redundant.</li>
+<li>see <a href="https://pandoc.org/MANUAL.html#templates">Template documentation</a></li>
+<li>Existing templates are in <code>$DATADIR/templates</code>. fwiw I butchered default.html</li>
+</ul>
+<p>do</p>
+<pre><code>pandoc -v | grep &quot;User data directory:&quot; | sed &quot;s/User data directory: //&quot;</code></pre>
+<p>to find <code>$DATADIR</code></p>
+<h2 id="hacking-lua">Hacking lua</h2>
+<p>Lua is fairly straightforward at the expression level so with luck, if you don’t like what I’m doing with subscripts in <code>gmi.lua</code>:</p>
+<pre><code>function Subscript(s)
+    return &quot;_&quot; .. s
+end</code></pre>
+<p>then, knowing that <code>..</code> is the string concatenation operator, it’s pretty easy to mangle the results. Pandoc puts this on a plate in front of you and, short of eating it for you, there isn’t a lot more they could do.</p>
+<p>Pandoc’s sample lua has some funky programming to deal with html output and needs a fairly big rewrite for our purposes, but it gives a good insight into the changes that have to be made. For instance, if you want to do citations, do</p>
+<pre><code>pandoc --print-default-data-file sample.lua &gt; sample.lua</code></pre>
+<p>as mentioned above and pick the bones out of <code>function Cite(s, cs)</code>.</p>
+<h2 id="installation">Installation</h2>
+<p>There isn’t any really, you just need <code>gmi.lua</code> and <code>default.gmi</code> somewhere you can remember and then reference them on the command line. Putting <code>default.gmi</code> in <code>$DATADIR/templates</code>, as <a href="https://github.com/jgm/pandoc/blob/master/doc/customizing-pandoc.md#templates">recommended</a> works for me on windows and removes the needto explicitly specify a <code>gmi</code> template, however putting <code>gmi.lua</code> in <code>$DATADIR/filters</code> didn’t work (see -L SCRIPT, –lua-filter=SCRIPT under <a href="https://pandoc.org/MANUAL.html#reader-options">Reader options</a>), but that may be a windows thing?</p>
+<h2 id="bugs-c">Bugs &amp;c</h2>
+<ul>
+<li>too many new lines</li>
+<li>links need more work</li>
+<li>tables are rendered as csv</li>
+<li>double quotes in csv fields aren’t escaped</li>
+<li>lists will probably be a problem</li>
+<li>not sure about the <code>&lt;link&gt;[n]</code> rendering of links</li>
+</ul>
+<h2 id="other-software">Other Software</h2>
+<p><code>md2gmn</code> is an effective markdown to gmi converter - <a href="https://pkg.go.dev/github.com/tdemin/gmnhg">download here</a></p>
+</body>
+</html>

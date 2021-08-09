@@ -1,0 +1,149 @@
+---
+author:
+- Nick James
+title: Emitting gemtext with Pandoc
+---
+## Introduction
+Whilst faffing with [gemtext](https://gemini.circumlunar.space/docs/specification.gmi) it ocurred to me that [pandoc](https://pandoc.org/) could 
+do the heavy lifting when it came to generating .gmi files. 
+
+Still interested? Read on!
+
+## Gemtext?
+Gemini is a [recent proposal](https://gemini.circumlunar.space/) for a 
+lightweight web protocol with a mime type of text/gmi. Gemtext is, 
+by design, childishly simple to write by
+hand, but it's another story if you have reams of stuff you want to put
+in geminispace. Hence the interest in converting to text/gmi. 
+
+## Pandoc?
+Pandoc is a well established document converter, typically used 
+to get from markdown to html. /However/ it takes lots of different 
+[formats](https://pandoc.org/MANUAL.html#general-options) as input 
+and output. Its input is converted into an internal representation 
+which is emitted in the users choice of output format. Critically, 
+it also provides facilities for emitting custom formats 
+(see -F PROGRAM, --filter=PROGRAM under 
+[Reader options](https://pandoc.org/MANUAL.html#reader-options)). 
+One of these [facilities](https://pandoc.org/MANUAL.html#custom-writers)
+enables you to use [Lua](https://www.lua.org/) to convert 
+Pandoc's internal representation to the desired output.
+
+## How?
+You need `gmi.lua`. `default.gmi` will probably come in handy.
+
+    pandoc -t gmi.lua markdownFile
+
+will convert markdown to text/gmi on stdout. If you want the 
+title block etc etc to show up, use
+
+    pandoc -t gmi.lua --template default.gmi markdownFile
+
+To convert from another format, do something like
+
+    pandoc -f FORMAT -t gmi.lua --template default.gmi file.format
+
+where `FORMAT` is one of pandoc's input formats. 
+See [options](https://pandoc.org/MANUAL.html#options)
+for more details.
+
+## OMG the output's horrible
+Owing to a combination of my laziness and inadequacy, some of 
+the conversions aren't very nice. 
+
+Oh, you wanted citations?
+
+    function Cite(s, cs)
+        return "\nsorry cite not implemented\n"
+    end
+
+
+## So what are you going to do about it?
+Nothing.
+
+I may faff about with it to make it better suit my purposes 
+over the next few years.
+
+Should you wish to do the same, read on.
+
+## Scratching the itch
+### Lua
+Using Lua to customize the output involves writing functions that
+are invoked when particular bits of pandoc's internal representation 
+come to be emitted. I don't understand Pandoc, Haskell
+or Lua and luckily enough, you don't have to either.
+
+Doing 
+
+    pandoc --print-default-data-file sample.lua > sample.lua
+
+gives you a [lua program](https://pandoc.org/MANUAL.html#custom-writers) 
+mimicking pandoc's conversion to `html`
+
+`gmi.lua` is just a hack of `sample.lua`
+
+### The Template
++ `default.gmi` is a [template](https://pandoc.org/MANUAL.html#templates) 
+  that specifies output when `-s`/`--standalone` is used on the pandoc command line.
++ In the gmi case pandoc will moan if you use standalone mode
+  without doing `--template default.gmi`, but it will find 
+  `default.gmi` if it's in `$DATADIR/templates`. 
++ if `default.gmi` isn't in the template directory you need 
+  to specify it's full path on the command line.
++ If you specify the template, `--standalone` is redundant.
++ see [Template documentation](https://pandoc.org/MANUAL.html#templates)
++ Existing templates are in `$DATADIR/templates`. fwiw I butchered 
+  default.html
+
+do 
+
+    pandoc -v | grep "User data directory:" | sed "s/User data directory: //"
+
+to find `$DATADIR`
+ 
+## Hacking lua
+Lua is fairly straightforward at the expression level so with
+luck, if you don't like what I'm doing with subscripts in `gmi.lua`:
+
+    function Subscript(s)
+        return "_" .. s
+    end
+
+then, knowing that `..` is the string concatenation operator, it's
+pretty easy to mangle the results. Pandoc puts this on a plate in front 
+of you and, short of eating it for you, there isn't a lot more they 
+could do.
+
+Pandoc's sample lua has some funky programming to deal with html 
+output and needs a fairly big rewrite for our purposes, but it 
+gives a good insight into the changes that have to be made. For 
+instance, if you want to do citations, do 
+
+    pandoc --print-default-data-file sample.lua > sample.lua
+
+as mentioned above and pick the bones out of `function Cite(s, cs)`. 
+
+
+## Installation
+There isn't any really, you just need `gmi.lua` and `default.gmi`
+somewhere you can remember and then reference them on the command
+line. Putting `default.gmi` in `$DATADIR/templates`,
+as [recommended](https://github.com/jgm/pandoc/blob/master/doc/customizing-pandoc.md#templates) 
+works for me on windows and removes the needto explicitly specify 
+a `gmi` template, however putting `gmi.lua` in `$DATADIR/filters` 
+didn't work (see -L SCRIPT, --lua-filter=SCRIPT under 
+[Reader options](https://pandoc.org/MANUAL.html#reader-options)), 
+but that may be a windows thing?
+
+## Bugs &c
++ too many new lines
++ links need more work
++ tables are rendered as csv
++ double quotes in csv fields aren't escaped
++ lists will probably be a problem
++ not sure about the `<link>[n]` rendering of links
+ 
+## Other Software
+`md2gmn` is an effective markdown to gmi converter - 
+[download here](https://pkg.go.dev/github.com/tdemin/gmnhg)
+

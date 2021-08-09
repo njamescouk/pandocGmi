@@ -1,0 +1,32 @@
+$for(header-includes)$
+  $header-includes$
+$endfor$
+
+$if(title)$
+# $title$
+$endif$
+
+$if(subtitle)$
+## $subtitle$
+$endif$
+
+$for(author)$
+### $author$
+$endfor$
+
+$if(date)$
+$date$
+$endif$
+
+$for(include-before)$
+$include-before$
+$endfor$
+$if(toc)$
+$idprefix$ " TOC"
+$table-of-contents$
+$endif$
+$body$
+$for(include-after)$
+$include-after$
+$endfor$
+
