@@ -129,7 +129,7 @@ There isn't any really, you just need `gmi.lua` and `default.gmi`
 somewhere you can remember and then reference them on the command
 line. Putting `default.gmi` in `$DATADIR/templates`,
 as [recommended](https://github.com/jgm/pandoc/blob/master/doc/customizing-pandoc.md#templates) 
-works for me on windows and removes the needto explicitly specify 
+works for me on windows and removes the need to explicitly specify 
 a `gmi` template, however putting `gmi.lua` in `$DATADIR/filters` 
 didn't work (see -L SCRIPT, --lua-filter=SCRIPT under 
 [Reader options](https://pandoc.org/MANUAL.html#reader-options)), 
